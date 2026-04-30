@@ -1,21 +1,42 @@
-import type { Request, Response } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../lib/prisma.js";
+import { createUserSchema } from "../validators/user.validator.js";
 
-export const createUser = async (req: Request, res: Response) => {
-  const { name, email } = req.body;
+export const createUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const parsed = createUserSchema.safeParse(req.body);
 
-  if (!name || !email) {
-    return res.status(400).json({ error: "Name and email required" });
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: parsed.error.errors,
+      });
+    }
+
+    const { name, email } = parsed.data;
+
+    const user = await prisma.user.create({
+      data: { name, email },
+    });
+
+    res.status(201).json(user);
+  } catch (error) {
+    next(error);
   }
-
-  const user = await prisma.user.create({
-    data: { name, email },
-  });
-
-  res.status(201).json(user);
 };
 
-export const getUsers = async (req: Request, res: Response) => {
-  const users = await prisma.user.findMany();
-  res.json(users);
+export const getUsers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const users = await prisma.user.findMany();
+    res.json(users);
+  } catch (error) {
+    next(error);
+  }
 };
